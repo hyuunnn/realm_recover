@@ -28,32 +28,6 @@ def get_column_type(flag):
     return COLUMN_TYPE_MAP.get(flag, "Unknown")
 
 
-class COLUMN_TYPE:
-    Integer = 0x0
-    Bool = 0x1
-    String = 0x2
-    Binary = 0x4
-    Table = 0x5
-    Mixed = 0x6
-    OldDateTime = 0x7
-    Timestamp = 0x8
-    Float = 0x9
-    Double = 0xA
-    Link = 0xC
-    LinkList = 0xD
-
-
-COLUMN_TYPE_MAP = {
-    value: name
-    for name, value in vars(COLUMN_TYPE).items()
-    if not name.startswith("__")
-}
-
-
-def get_column_type(flag):
-    return COLUMN_TYPE_MAP.get(flag, "Unknown")
-
-
 # class COLUMN_OPTION:
 #     PrimaryKey = 0x01
 #     EnableNullValue = 0x10
