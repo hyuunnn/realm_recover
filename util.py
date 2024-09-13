@@ -40,8 +40,8 @@ def read_string(f):
     return value
 
 
-# object 구조에 맞추기 위해서 4바이트 단위로 끊고, 나머지는 0으로 채우기 때문에 4바이트씩 끊어서 AAAA 시그니처 만나기 전까지 파싱하면 될듯
-# \x00으로 자르는건 안되는 이유가 있는데 byte 값 중간에 00이 있는 경우도 있음
+# object 구조에 맞추기 위해서 4바이트 단위로 끊고, 나머지는 0으로 채우기 때문에 4바이트씩 끊어서 AAAA 시그니처 만나기 전까지 파싱하면 된다.
+# byte 값 중간에 00이 있는 경우도 있기 때문에 \x00으로 잘라내면 안된다.
 def read_boolean(f):
     value = bytearray()
     while True:

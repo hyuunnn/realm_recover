@@ -47,15 +47,13 @@ class ObjectParser:
 
     # parse_object 규칙에 맞지 않는 경우가 있어서 따로 분리
     # ex: column name 가져올 때 object type이 0xc인데 string인 경우가 있었다.
-    # table schema에는 column type, column name 데이터가 고정이기 때문
+    # table schema에는 column type, column name 데이터로 고정되어 있음
     def parse_column_name(self):
         self.used_offsets.add(self.offset)
-
         return self._parse_string()
 
     def parse_column_type(self):
         self.used_offsets.add(self.offset)
-
         column_type_flag = byte_to_int(self._buf.read(8))
         return [
             get_column_type((column_type_flag >> i) & 0xF)
@@ -130,8 +128,8 @@ class ObjectParser:
             try:
                 result.append(parser.parse_object())
             except ValueError as e:
-                # 0x3, 0x43 등 Unknown Object Type인 경우 pass
-                print(e, parser.offset)
+                # print(e)
+                pass
 
         return result
 

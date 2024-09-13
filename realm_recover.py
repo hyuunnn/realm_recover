@@ -27,7 +27,7 @@ class RealmRecover(FileHeader):
             pass
 
     # 코드에서 사용하지 않은 offset 사용하기
-    # 사용 출처를 모르지만 TreeRootOffset을 통해 접근하는 offset이기 때문에 used_offsets에 추가하여 unused_offsets로 처리하는 offset의 개수를 줄이기 위함
+    # 명확한 출처는 모르지만 구조를 따라가는 과정에서 어딘가에 사용되는 offset이기 때문에 used_offsets에 추가한다. -> unused_offsets로 처리하는 offset의 개수를 줄이기 위함
     def _parse_offsets(self, offsets):
         for offset in offsets:
             self._parse_object(offset, recursive=1)
@@ -40,7 +40,6 @@ class RealmRecover(FileHeader):
 
         self._parse_offsets(obj[2:])
         self._parse_offsets(table_array_offsets[:2])
-
         self.used_offsets.add(tree_root_offset)
 
         tables = []
