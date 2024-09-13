@@ -34,12 +34,14 @@ def get_column_type(flag):
 
 
 class ObjectParser:
-    def __init__(self, buf, offset, recursive=0):
+    def __init__(self, buf, offset, used_offsets=None, recursive=0):
         self._buf = buf
-        self._buf.seek(offset)
+        self.offset = offset
+        self.used_offsets = used_offsets if used_offsets is not None else set()
+        self._buf.seek(self.offset)
         self._valid_signature()
         self.recursive = recursive
-
+        
         self.object_type = byte_to_int(self._buf.read(2))
         self.c = int.from_bytes(self._buf.read(2))  # length or count
 
@@ -47,9 +49,13 @@ class ObjectParser:
     # ex: column name 가져올 때 object type이 0xc인데 string인 경우가 있었다.
     # table schema에는 column type, column name 데이터가 고정이기 때문
     def parse_column_name(self):
+        self.used_offsets.add(self.offset)
+
         return self._parse_string()
 
     def parse_column_type(self):
+        self.used_offsets.add(self.offset)
+
         column_type_flag = byte_to_int(self._buf.read(8))
         return [
             get_column_type((column_type_flag >> i) & 0xF)
@@ -75,9 +81,13 @@ class ObjectParser:
         }.get(self.object_type)
 
         if parser_method:
+            self.used_offsets.add(self.offset)
             return parser_method()
         else:
             raise ValueError(f"Unknown object type: {hex(self.object_type)}")
+
+    def _pass(self):
+        pass
 
     def _parse_boolean(self):
         bool_flag = read_boolean(self._buf)
@@ -119,12 +129,12 @@ class ObjectParser:
     def _parse_realm_object_recursive(self, sub_offsets):
         result = []
         for sub_offset in sub_offsets:
-            parser = ObjectParser(self._buf, sub_offset, self.recursive)
+            parser = ObjectParser(self._buf, sub_offset, self.used_offsets, self.recursive)
             try:
                 result.append(parser.parse_object())
             except ValueError as e:
                 # 0x3, 0x43 등 Unknown Object Type인 경우 pass
-                pass
+                print(e)
 
         return result
 
