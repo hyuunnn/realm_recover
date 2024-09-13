@@ -42,8 +42,8 @@ class ObjectParser:
         self._valid_signature()
         self.recursive = recursive
         
-        self.object_type = byte_to_int(self._buf.read(2))
-        self.c = int.from_bytes(self._buf.read(2))  # length or count
+        self.object_type = byte_to_int(self._buf.read(1))
+        self.c = int.from_bytes(self._buf.read(3))  # length or count
 
     # parse_object 규칙에 맞지 않는 경우가 있어서 따로 분리
     # ex: column name 가져올 때 object type이 0xc인데 string인 경우가 있었다.
@@ -86,9 +86,6 @@ class ObjectParser:
         else:
             raise ValueError(f"Unknown object type: {hex(self.object_type)}")
 
-    def _pass(self):
-        pass
-
     def _parse_boolean(self):
         bool_flag = read_boolean(self._buf)
         binary_string = bin(byte_to_int(bool_flag))[2:]
@@ -102,7 +99,7 @@ class ObjectParser:
 
     def _parse_int32(self):
         value = [byte_to_int(self._buf.read(4)) for _ in range(self.c)]
-        # timestamp인 경우 0x7FFFFFFF으로 시작한다.
+        # timestamp인 경우 0x7FFFFFFF으로 시작
         if len(value) > 1 and value[0] == 0x7FFFFFFF:
             return [num_to_timestamp(i) for i in value[1:]]
 
@@ -134,7 +131,7 @@ class ObjectParser:
                 result.append(parser.parse_object())
             except ValueError as e:
                 # 0x3, 0x43 등 Unknown Object Type인 경우 pass
-                print(e)
+                print(e, parser.offset)
 
         return result
 

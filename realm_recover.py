@@ -19,55 +19,47 @@ class RealmRecover(FileHeader):
         self._buf.close()
         self._f.close()
 
+    def _parse_object(self, offset, recursive=0):
+        try:
+            return ObjectParser(self._buf, offset, self.used_offsets, recursive=recursive).parse_object()
+        except ValueError as e:
+            # print(e)
+            pass
+
+    # 코드에서 사용하지 않은 offset 사용하기
+    # 사용 출처를 모르지만 TreeRootOffset을 통해 접근하는 offset이기 때문에 used_offsets에 추가하여 unused_offsets로 처리하는 offset의 개수를 줄이기 위함
+    def _parse_offsets(self, offsets):
+        for offset in offsets:
+            self._parse_object(offset, recursive=1)
+
     def parse_objects(self, tree_root_offset):
+        obj = self._parse_object(tree_root_offset)
         # [2:]하는 이유는 pk, metadata 정보는 필요 없다고 판단하여 삭제
-        obj = ObjectParser(self._buf, tree_root_offset, self.used_offsets).parse_object()
-        tableInformation = ObjectParser(self._buf, obj[0], self.used_offsets).parse_object()[2:]
-        table_array_offsets = ObjectParser(self._buf, obj[1], self.used_offsets).parse_object()
+        tableInformation = self._parse_object(obj[0])[2:]
+        table_array_offsets = self._parse_object(obj[1])
 
-        # obj 변수에서 사용하지 않은 나머지 offset들 털어내기
-        for i in obj[2:]:
-            try:
-                ObjectParser(self._buf, i, self.used_offsets, recursive=1).parse_object()
-            except ValueError as e:
-                # print(e)
-                pass
-
-
-        # table_array_offsets 변수에서 사용하지 않은 나머지 offset들 털어내기
-        for i in table_array_offsets[:2]:
-            try:
-                ObjectParser(self._buf, i, self.used_offsets, recursive=1).parse_object()
-            except ValueError as e:
-                # print(e)
-                pass
+        self._parse_offsets(obj[2:])
+        self._parse_offsets(table_array_offsets[:2])
 
         self.used_offsets.add(tree_root_offset)
 
         tables = []
         for offset in table_array_offsets[2:]:
-            tableArray = ObjectParser(self._buf, offset, self.used_offsets).parse_object()
+            tableArray = self._parse_object(offset)
             if len(tableArray) != 2:  # Table Schema, Data Storage 고정
                 raise ValueError(f"Invalid table object length: {len(tableArray)}. Expected value is 2.")
             
             table_schema_offset, data_storage_offset = tableArray
             # parse_column_type 함수 주석 참고
-            aa = ObjectParser(self._buf, table_schema_offset, self.used_offsets).parse_object()
+            schema_obj  = self._parse_object(table_schema_offset)
 
             tableSchema = [
-                ObjectParser(self._buf, aa[0], self.used_offsets).parse_column_type(),  # column_type offset
-                ObjectParser(self._buf, aa[1], self.used_offsets).parse_column_name(),  # column_name offset
+                ObjectParser(self._buf, schema_obj[0], self.used_offsets).parse_column_type(),  # column_type offset
+                ObjectParser(self._buf, schema_obj[1], self.used_offsets).parse_column_name(),  # column_name offset
             ]
-            # aa 변수에서 사용하지 않은 나머지 offset들 털어내기
-            for i in aa[2:]:
-                try:
-                    ObjectParser(self._buf, i, self.used_offsets, recursive=1).parse_object()
-                except ValueError as e:
-                    # print(e)
-                    pass
+            self._parse_offsets(schema_obj[2:])
 
-            dataStorage = ObjectParser(self._buf, data_storage_offset, self.used_offsets, recursive=1).parse_object()
-
+            dataStorage = self._parse_object(data_storage_offset, recursive=1)
             tables.append([tableSchema, dataStorage])
 
         return tableInformation, tables
@@ -111,8 +103,8 @@ class RealmRecover(FileHeader):
 
                 for i2, j2 in zip(data_storage1, data_storage2):
                     result = ordered_difference(i2, j2)
-                    f.write(f"  - TreRootOffset01에 있으나 TreRootOffset02에 없는 데이터: {result[0]}\n")
-                    f.write(f"  - TreRootOffset02에 있으나 TreRootOffset01에 없는 데이터: {result[1]}\n\n")
+                    f.write(f"  - TreeRootOffset01에 있으나 TreeRootOffset02에 없는 데이터: {result[0]}\n")
+                    f.write(f"  - TreeRootOffset02에 있으나 TreeRootOffset01에 없는 데이터: {result[1]}\n\n")
 
             f2.write(f"Table {idx} Data Storage1: {data_storage1}\n\n")
             f2.write(f"Table {idx} Data Storage2: {data_storage2}\n\n")
@@ -121,38 +113,32 @@ class RealmRecover(FileHeader):
         f2.close()
 
     def scan_all_objects(self, used_offsets):
+        EXCLUDED_TYPES = {0x45, 0x46, 0x65, 0x66}
+
         offsets = self._scan_for_signature()
         all_objects = []
         unused_objects = []
-        for offset in offsets:
-            if offset in used_offsets:
-                try:
-                    parser = ObjectParser(self._buf, offset)
-                    if parser.object_type not in {0x45, 0x46, 0x65, 0x66}:
-                        obj = parser.parse_object()
-                        all_objects.append((offset, parser.object_type, parser.c, obj))
-                except ValueError as e:
-                    # print(e)
-                    pass
 
+        for offset in offsets:
+            parser = ObjectParser(self._buf, offset)
+            if parser.object_type in EXCLUDED_TYPES:
                 continue
 
             try:
-                parser = ObjectParser(self._buf, offset)
-                if parser.object_type not in {0x45, 0x46, 0x65, 0x66}:
-                    obj = parser.parse_object()
-                    unused_objects.append((offset, parser.object_type, parser.c, obj))
+                obj = parser.parse_object()
+                if parser.c > 0:
                     all_objects.append((offset, parser.object_type, parser.c, obj))
+                    if offset not in used_offsets:
+                        unused_objects.append((offset, parser.object_type, parser.c, obj))
             except ValueError as e:
-                # print(e)
                 pass
 
-        with open("scan_all_objects.txt", "w", encoding="utf-8-sig") as f:
-            for offset, obj_type, obj_count, obj in all_objects:
-                f.write(f"Offset: {hex(offset)}, Type: {hex(obj_type)}, Count: {obj_count}, Object: {obj}\n")
+        self._write_scan_results(all_objects, "scan_all_objects.txt")
+        self._write_scan_results(unused_objects, "scan_unused_objects.txt")
 
-        with open("scan_unused_objects.txt", "w", encoding="utf-8-sig") as f:
-            for offset, obj_type, obj_count, obj in unused_objects:
+    def _write_scan_results(self, objects, filename):
+        with open(filename, "w", encoding="utf-8-sig") as f:
+            for offset, obj_type, obj_count, obj in objects:
                 f.write(f"Offset: {hex(offset)}, Type: {hex(obj_type)}, Count: {obj_count}, Object: {obj}\n")
 
     def _scan_for_signature(self, signature=b"AAAA"):
