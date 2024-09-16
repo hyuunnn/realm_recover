@@ -19,7 +19,7 @@ class RealmRecover(FileHeader):
         self._buf.close()
         self._f.close()
 
-    def _parse_object(self, offset, recursive=0):
+    def _parse_object(self, offset, recursive=False):
         try:
             return ObjectParser(self._buf, offset, self.used_offsets, recursive=recursive).parse_object()
         except ValueError as e:
@@ -30,7 +30,7 @@ class RealmRecover(FileHeader):
     # 명확한 출처는 모르지만 구조를 따라가는 과정에서 어딘가에 사용되는 offset이기 때문에 used_offsets에 추가한다. -> unused_offsets로 처리하는 offset의 개수를 줄이기 위함
     def _parse_offsets(self, offsets):
         for offset in offsets:
-            self._parse_object(offset, recursive=1)
+            self._parse_object(offset, recursive=True)
 
     def parse_objects(self, tree_root_offset):
         obj = self._parse_object(tree_root_offset)
@@ -58,7 +58,7 @@ class RealmRecover(FileHeader):
             ]
             self._parse_offsets(schema_obj[2:])
 
-            dataStorage = self._parse_object(data_storage_offset, recursive=1)
+            dataStorage = self._parse_object(data_storage_offset, recursive=True)
             tables.append([tableSchema, dataStorage])
 
         return tableInformation, tables

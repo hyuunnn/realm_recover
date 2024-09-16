@@ -34,7 +34,7 @@ def get_column_type(flag):
 
 
 class ObjectParser:
-    def __init__(self, buf, offset, used_offsets=None, recursive=0):
+    def __init__(self, buf, offset, used_offsets=None, recursive=False):
         self._buf = buf
         self.offset = offset
         self.used_offsets = used_offsets if used_offsets is not None else set()
@@ -136,7 +136,7 @@ class ObjectParser:
     def _parse_realm_object_45(self):
         sub_offsets = [byte_to_int(self._buf.read(2)) for _ in range(self.c)]
 
-        if self.recursive == 1:
+        if self.recursive == True:
             return self._parse_realm_object_recursive(sub_offsets)
 
         return sub_offsets
@@ -144,7 +144,7 @@ class ObjectParser:
     def _parse_realm_object_46(self):
         sub_offsets = [byte_to_int(self._buf.read(4)) for _ in range(self.c)]
 
-        if self.recursive == 1:
+        if self.recursive == True:
             return self._parse_realm_object_recursive(sub_offsets)
 
         return sub_offsets
@@ -152,7 +152,7 @@ class ObjectParser:
     def _parse_realm_object_65(self):
         sub_offsets = [byte_to_int(self._buf.read(2)) for _ in range(self.c)]
 
-        if self.recursive == 1:
+        if self.recursive == True:
             return self._parse_realm_object_recursive(sub_offsets)
 
         return sub_offsets
@@ -160,7 +160,7 @@ class ObjectParser:
     def _parse_realm_object_66(self):
         sub_offsets = [byte_to_int(self._buf.read(4)) for _ in range(self.c)]
 
-        if self.recursive == 1:
+        if self.recursive == True:
             return self._parse_realm_object_recursive(sub_offsets)
 
         return sub_offsets
