@@ -19,19 +19,6 @@ class RealmRecover(FileHeader):
         self._buf.close()
         self._f.close()
 
-    def _parse_object(self, offset, recursive=False):
-        try:
-            return ObjectParser(self._buf, offset, self.used_offsets, recursive=recursive).parse_object()
-        except ValueError as e:
-            # print(e)
-            pass
-
-    # 코드에서 사용하지 않은 offset 사용하기
-    # 명확한 출처는 모르지만 구조를 따라가는 과정에서 어딘가에 사용되는 offset이기 때문에 used_offsets에 추가한다. -> unused_offsets로 처리하는 offset의 개수를 줄이기 위함
-    def _parse_offsets(self, offsets):
-        for offset in offsets:
-            self._parse_object(offset, recursive=True)
-
     def parse_objects(self, tree_root_offset):
         obj = self._parse_object(tree_root_offset)
         # [2:]하는 이유는 pk, metadata 정보는 필요 없다고 판단하여 삭제
@@ -62,6 +49,19 @@ class RealmRecover(FileHeader):
             tables.append([tableSchema, dataStorage])
 
         return tableInformation, tables
+    
+    def _parse_object(self, offset, recursive=False):
+        try:
+            return ObjectParser(self._buf, offset, self.used_offsets, recursive=recursive).parse_object()
+        except ValueError as e:
+            # print(e)
+            pass
+
+    # 코드에서 사용하지 않은 offset 사용하기
+    # 명확한 출처는 모르지만 구조를 따라가는 과정에서 어딘가에 사용되는 offset이기 때문에 used_offsets에 추가한다. -> unused_offsets로 처리하는 offset의 개수를 줄이기 위함
+    def _parse_offsets(self, offsets):
+        for offset in offsets:
+            self._parse_object(offset, recursive=True)
 
     def compare_objects(self, obj1, obj2):
         table_info1, tables1 = obj1
@@ -135,11 +135,6 @@ class RealmRecover(FileHeader):
         self._write_scan_results(all_objects, "scan_all_objects.txt")
         self._write_scan_results(unused_objects, "scan_unused_objects.txt")
 
-    def _write_scan_results(self, objects, filename):
-        with open(filename, "w", encoding="utf-8-sig") as f:
-            for offset, obj_type, obj_count, obj in objects:
-                f.write(f"Offset: {hex(offset)}, Type: {hex(obj_type)}, Count: {obj_count}, Object: {obj}\n")
-
     def _scan_for_signature(self, signature=b"AAAA"):
         self._buf.seek(0)
         offsets = []
@@ -150,6 +145,11 @@ class RealmRecover(FileHeader):
             offsets.append(offset)
             self._buf.seek(offset + 1)
         return offsets
+    
+    def _write_scan_results(self, objects, filename):
+        with open(filename, "w", encoding="utf-8-sig") as f:
+            for offset, obj_type, obj_count, obj in objects:
+                f.write(f"Offset: {hex(offset)}, Type: {hex(obj_type)}, Count: {obj_count}, Object: {obj}\n")
 
 
 if __name__ == "__main__":
