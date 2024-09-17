@@ -3,5 +3,5 @@
 ## Usage
 
 ```console
-$ python realm_recover.py --file test.realm
+$ python realm_recover.py --file sample/demo.realm
 ```
